@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Логи{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2>История действий</h2>
+    
+    <div class="table-responsive">
+        <table class="table table-hover history-table">
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Тип</th>
+                    <th>Действие</th>
+                    <th>Пользователь</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.timestamp.strftime('%d.%m.%Y %H:%M') }}</td>
+                    <td>
+                         {% if log.action_type == 'edit' %}
+                            <span class="badge bg-primary">Редактирование</span>
+                        {% elif log.action_type == 'delete' %}
+                            <span class="badge bg-danger">Удаление</span>
+                        {% elif log.action_type == 'restore' %}
+                            <span class="badge bg-success">Восстановление</span>
+                        {% elif log.action_type == 'login' %}
+                            <span class="badge bg-info">Вход</span>
+                        {% elif log.action_type == 'logout' %}
+                            <span class="badge bg-secondary">Выход</span>
+                        {% elif log.action_type == 'status_change' %}
+                            <span class="badge bg-info">Смена статуса</span>
+                        {% elif log.action_type == 'archive' %}
+                            <span class="badge bg-warning">Архивация</span>
+                        {% elif log.action_type == 'user_edit' %}
+                            <span class="badge bg-primary">Изменение пользователя</span>
+                        {% elif log.action_type == 'faq_edit' %}
+                            <span class="badge bg-info">Изменение FAQ</span>
+                        {% elif log.action_type == 'faq_delete' %}
+                            <span class="badge bg-danger">Удаление FAQ</span>
+                        {% elif log.action_type == 'faq_add' %}
+                            <span class="badge bg-success">Добавление FAQ</span>
+                        {% elif log.action_type == 'user_register' %}
+                            <span class="badge bg-success">Регистрация пользователя</span>
+                        {% elif log.action_type == 'user_create' %}
+                            <span class="badge bg-success">Создание пользователя</span>
+                        {% elif log.action_type == 'user_delete' %}
+                            <span class="badge bg-danger">Удаление пользователя</span>
+                        {% elif not log.action_type %}
+                            <span class="badge bg-secondary">Действие</span>
+                        {% else %}
+                            <span class="badge bg-dark">{{ log.action_type }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="white-space: pre-wrap;">{{ log.action }}{% if log.details %}<br>{{ log.details }}{% endif %}</td>
+                    <td>{{ log.user.username if log.user else 'Система' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% set base_args = request.args.to_dict() %}
+    <nav aria-label="Постраничная навигация">
+        <ul class="pagination justify-content-center">
+            {% if page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('logs_page', **(base_args|combine({'page': page-1}))) }}">Предыдущая</a>
+            </li>
+            {% endif %}
+            {% for p in range(1, total_pages + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('logs_page', **(base_args|combine({'page': p}))) }}">{{ p }}</a>
+            </li>
+            {% endfor %}
+            {% if page < total_pages %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('logs_page', **(base_args|combine({'page': page+1}))) }}">Следующая</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endblock %}

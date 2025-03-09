@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Панель управления{% endblock %}
+
+{% block header %}Панель управления{% endblock %}
+
+{% block content %}
+    <!-- Форма поиска и фильтрации -->
+    <form method="get" action="{{ url_for('index') }}" class="row g-3 mb-4">
+        <div class="col-md-4">
+            <input type="text" name="search" placeholder="Поиск по вопросам" class="form-control" 
+                   value="{{ request.args.get('search', '') }}">
+        </div>
+        <div class="col-md-3">
+            <select name="status" class="form-select">
+                <option value="">Все статусы</option>
+                <option value="в обработке" {% if request.args.get('status') == 'в обработке' %}selected{% endif %}>В обработке</option>
+                <option value="отвечен" {% if request.args.get('status') == 'отвечен' %}selected{% endif %}>Отвечен</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <select name="priority" class="form-select">
+                <option value="">Все приоритеты</option>
+                <option value="1" {% if request.args.get('priority') == '1' %}selected{% endif %}>🟢 Низкий</option>
+                <option value="2" {% if request.args.get('priority') == '2' %}selected{% endif %}>🟡 Средний</option>
+                <option value="3" {% if request.args.get('priority') == '3' %}selected{% endif %}>🔴 Высокий</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex">
+            <button type="submit" class="btn btn-primary flex-grow-1">Применить</button>
+            <a href="{{ url_for('index') }}" class="btn btn-outline-secondary ms-2" title="Сбросить фильтры">
+                <i class="fas fa-redo"></i>
+            </a>
+        </div>
+    </form>
+
+    <!-- Таблица с вопросами -->
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Пользователь</th>
+                    <th>Вопрос</th>
+                    <th>Статус</th>
+                    <th>Приоритет</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for question in questions %}
+                <tr>
+                    <td>{{ question.id }}</td>
+                    <td>{{ question.user_id if question.user_id else 'Неизвестный' }}</td>
+                    <td>{{ question.question }}</td>
+                    <td>
+                        {% if question.status == 'отвечен' %}
+                            <span class="badge bg-success">Отвечен</span>
+                        {% else %}
+                            <span class="badge bg-warning">В обработке</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if question.priority == 1 %}
+                            <span class="text-success">🟢 Низкий</span>
+                        {% elif question.priority == 2 %}
+                            <span class="text-warning">🟡 Средний</span>
+                        {% else %}
+                            <span class="text-danger">🔴 Высокий</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <a href="{{ url_for('edit_question', question_id=question.id) }}" 
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% if current_user.role in ['moderator','admin', 'superadmin'] %}
+                            <form action="{{ url_for('archive_question', question_id=question.id) }}"
+                                  method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-archive"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Пагинация -->
+    {% set base_args = request.args.to_dict() %}
+    <nav aria-label="Постраничная навигация">
+      <ul class="pagination justify-content-center">
+        {% if page > 1 %}
+        <li class="page-item">
+          <a class="page-link" href="{{ url_for('index', **(base_args|combine({'page': page-1}))) }}">Предыдущая</a>
+        </li>
+        {% endif %}
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for('index', **(base_args|combine({'page': p}))) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        {% if page < total_pages %}
+        <li class="page-item">
+          <a class="page-link" href="{{ url_for('index', **(base_args|combine({'page': page+1}))) }}">Следующая</a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <!-- Подключение jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Автоматическое обновление страницы при появлении новых данных -->
+    <script>
+        const lastCount = {{ questions|length }};
+        
+        // Асинхронная функция для проверки новых вопросов
+        const checkForNewQuestions = async () => {
+            try {
+                const response = await fetch("{{ url_for('questions_json') }}");
+                if (!response.ok) {
+                    throw new Error("Ошибка сети");
+                }
+                const data = await response.json();
+                if (data.length > lastCount) {
+                    location.reload();
+                }
+            } catch (error) {
+                console.error("Ошибка при проверке новых вопросов:", error);
+            }
+        };
+        
+        // Запуск проверки каждые 10 секунд
+        setInterval(checkForNewQuestions, 10000);
+    </script>
+{% endblock %}

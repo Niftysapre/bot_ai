@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="mt-4">
+    <h1 class="mb-4">Аналитика ответов</h1>
+    
+    <!-- Графики -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    Распределение оценок по источникам
+                </div>
+                <div class="card-body">
+                    <canvas id="ratingsChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    Динамика оценок за последние 7 дней
+                </div>
+                <div class="card-body">
+                    <canvas id="weeklyChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Статистика -->
+    <div class="row mt-4">
+        <div class="col-md-4 col-sm-12 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <i class="fas fa-book me-2"></i>FAQ
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ faq_ratings.positive or 0 }} / {{ faq_ratings.total or 0 }}</h5>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ faq_positive_percent }}%">
+                            {{ faq_positive_percent|round(1) }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        Положительных оценок: {{ faq_ratings.positive or 0 }}<br>
+                        Отрицательных оценок: {{ (faq_ratings.total - faq_ratings.positive) if faq_ratings.total else 0 }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 col-sm-12 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-robot me-2"></i>ИИ
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ ai_ratings.positive or 0 }} / {{ ai_ratings.total or 0 }}</h5>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ ai_positive_percent }}%">
+                            {{ ai_positive_percent|round(1) }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        Положительных оценок: {{ ai_ratings.positive or 0 }}<br>
+                        Отрицательных оценок: {{ (ai_ratings.total - ai_ratings.positive) if ai_ratings.total else 0 }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 col-sm-12 mb-3">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <i class="fas fa-user me-2"></i>Человек
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ human_ratings.positive or 0 }} / {{ human_ratings.total or 0 }}</h5>
+                    <div class="progress mb-2">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: {{ human_positive_percent }}%">
+                            {{ human_positive_percent|round(1) }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        Положительных оценок: {{ human_ratings.positive or 0 }}<br>
+                        Отрицательных оценок: {{ (human_ratings.total - human_ratings.positive) if human_ratings.total else 0 }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Последние оценки -->
+    <div class="mt-4">
+        <h3>Последние оценки</h3>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Источник</th>
+                        <th>Оценка</th>
+                        <th>Время</th>
+                        <th>ID вопроса</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rating in recent_ratings %}
+                    <tr>
+                        <td>
+                            {% if rating.source == "faq" %}
+                            <span class="badge bg-primary"><i class="fas fa-book me-1"></i>FAQ</span>
+                            {% elif rating.source == "ai" %}
+                            <span class="badge bg-info"><i class="fas fa-robot me-1"></i>ИИ</span>
+                            {% else %}
+                            <span class="badge bg-success"><i class="fas fa-user me-1"></i>Человек</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if rating.rating == 1 %}
+                            <span class="text-success"><i class="fas fa-thumbs-up"></i></span>
+                            {% else %}
+                            <span class="text-danger"><i class="fas fa-thumbs-down"></i></span>
+                            {% endif %}
+                        </td>
+                        <td>{{ (rating.timestamp|to_moscow_time).strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>
+                            {% if rating.question_id %}
+                            <a href="{{ url_for('edit_question', question_id=rating.question_id) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                #{{ rating.question_id }}
+                            </a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Подключаем Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // График распределения оценок
+    new Chart(document.getElementById('ratingsChart'), {
+        type: 'bar',
+        data: {
+            labels: ['FAQ', 'ИИ', 'Человек'],
+            datasets: [{
+                label: 'Положительные',
+                data: [
+                    {{ faq_ratings.positive or 0 }},
+                    {{ ai_ratings.positive or 0 }},
+                    {{ human_ratings.positive or 0 }}
+                ],
+                backgroundColor: 'rgba(40, 167, 69, 0.5)',
+                borderColor: 'rgb(40, 167, 69)',
+                borderWidth: 1
+            }, {
+                label: 'Отрицательные',
+                data: [
+                    {{ (faq_ratings.total - faq_ratings.positive) if faq_ratings.total else 0 }},
+                    {{ (ai_ratings.total - ai_ratings.positive) if ai_ratings.total else 0 }},
+                    {{ (human_ratings.total - human_ratings.positive) if human_ratings.total else 0 }}
+                ],
+                backgroundColor: 'rgba(220, 53, 69, 0.5)',
+                borderColor: 'rgb(220, 53, 69)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // График динамики за неделю (заглушка, нужно добавить данные в контроллер)
+    new Chart(document.getElementById('weeklyChart'), {
+        type: 'line',
+        data: {
+            labels: ['7 дней назад', '6 дней назад', '5 дней назад', '4 дня назад', '3 дня назад', '2 дня назад', 'Сегодня'],
+            datasets: [{
+                label: 'Положительные оценки',
+                data: {{ weekly_positive_ratings|tojson }},
+                borderColor: 'rgb(40, 167, 69)',
+                tension: 0.1
+            }, {
+                label: 'Отрицательные оценки',
+                data: {{ weekly_negative_ratings|tojson }},
+                borderColor: 'rgb(220, 53, 69)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}
+
+{% block scripts %}
+    {{ super() }}
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        // Асинхронная функция для проверки новых данных
+        const checkForNewRatings = async () => {
+            try {
+                const response = await fetch("{{ url_for('analytics_json') }}");
+                if (!response.ok) {
+                    throw new Error("Ошибка сети");
+                }
+                const data = await response.json();
+
+                // Проверяем изменения в количестве оценок
+                if (data.total_ratings !== {{ (faq_ratings.total or 0) + (ai_ratings.total or 0) + (human_ratings.total or 0) }}) {
+                    location.reload();
+                }
+            } catch (error) {
+                console.error("Ошибка при проверке новых оценок:", error);
+            }
+        };
+
+        // Запуск проверки каждые 20 секунд
+        setInterval(checkForNewRatings, 20000);
+    </script>
+{% endblock %} 

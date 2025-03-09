@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}FAQ{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2><i class="fas fa-book"></i> Словарь</h2>
+                {% if current_user.role in ['moderator','admin', 'superadmin'] %}
+                <a href="{{ url_for('add_faq') }}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Вопрос</th>
+                        <th>Ответ</th>
+                        <th style="width: 150px;">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for faq in faqs %}
+                    <tr>
+                        <td>{{ faq.question }}</td>
+                        <td style="whites-space: pre-wrap;">{{ faq.answer }}</td>
+                        <td class="d-flex gap-2">
+                            {% if current_user.role in ['admin', 'moderator', 'superadmin'] %}
+                            <a href="{{ url_for('edit_faq', faq_id=faq.id) }}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-edit"></i> 
+                            </a>
+                            {% if current_user.role in ['moderator','admin', 'superadmin'] %}
+                            <form action="{{ url_for('delete_faq', faq_id=faq.id) }}" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-danger btn-sm" 
+                                        onclick="return confirm('Вы уверены, что хотите удалить этот вопрос?');">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% set base_args = request.args.to_dict() %}
+    <nav aria-label="Постраничная навигация" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page > 1 %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('faq', **(base_args|combine({'page': page-1}))) }}">Предыдущая</a>
+            </li>
+            {% endif %}
+            {% for p in range(1, total_pages + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="{{ url_for('faq', **(base_args|combine({'page': p}))) }}">{{ p }}</a>
+            </li>
+            {% endfor %}
+            {% if page < total_pages %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('faq', **(base_args|combine({'page': page+1}))) }}">Следующая</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endblock %}

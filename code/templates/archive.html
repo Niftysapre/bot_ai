@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Архив{% endblock %}
+
+{% block header %}Архив{% endblock %}
+
+{% block content %}
+<!-- Форма поиска и фильтрации вместе с кнопками действий -->
+<form method="get" action="/archive" class="row g-3 mb-4">
+    <div class="col-md-4">
+        <input type="text" name="search" placeholder="Поиск по вопросам" class="form-control" value="{{ request.args.get('search', '') }}">
+    </div>
+    <div class="col-md-3">
+        <select name="status" class="form-select">
+            <option value="" {% if not request.args.get('status') %}selected{% endif %}>Все статусы</option>
+            <option value="в обработке" {% if request.args.get('status') == "в обработке" %}selected{% endif %}>В обработке</option>
+            <option value="отвечен" {% if request.args.get('status') == "отвечен" %}selected{% endif %}>Отвечен</option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select name="priority" class="form-select">
+            <option value="">Все приоритеты</option>
+            <option value="1" {% if request.args.get('priority') == '1' %}selected{% endif %}>🟢 Низкий</option>
+            <option value="2" {% if request.args.get('priority') == '2' %}selected{% endif %}>🟡 Средний</option>
+            <option value="3" {% if request.args.get('priority') == '3' %}selected{% endif %}>🔴 Высокий</option>
+        </select>
+    </div>
+    <div class="col-md-2 d-flex align-items-center justify-content-end">
+        <button type="submit" class="btn btn-primary me-2">Применить</button>
+        <a href="/archive" class="btn btn-outline-secondary" title="Сбросить фильтры">
+            <i class="fas fa-redo"></i>
+        </a>
+        <!-- Кнопка удаления всех архивированных вопросов с иконкой мусорки -->
+        <button type="submit" form="deleteForm" class="btn btn-danger" title="Удалить все архивированные вопросы"
+                onclick="return confirm('Вы уверены, что хотите удалить все архивированные вопросы?');">
+            <i class="fas fa-trash"></i>
+        </button>
+    </div>
+</form>
+
+<!-- Отдельный скрытый form для удаления всех архивированных вопросов -->
+<form id="deleteForm" action="{{ url_for('delete_all_archived') }}" method="post" style="display:none;"></form>
+
+<!-- Таблица архивированных вопросов -->
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Пользователь</th>
+                <th>Вопрос</th>
+                <th>Статус</th>
+                <th>Приоритет</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for question in questions %}
+            <tr>
+                <td>{{ question.id }}</td>
+                <td>{{ question.user_id if question.user_id else 'Неизвестный' }}</td>
+                <td>{{ question.question }}</td>
+                <td>
+                    {% if question.status == 'отвечен' %}
+                        <span class="badge bg-success">Отвечен</span>
+                    {% else %}
+                        <span class="badge bg-warning">В обработке</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if question.priority == 1 %}
+                        <span class="text-success">🟢 Низкий</span>
+                    {% elif question.priority == 2 %}
+                        <span class="text-warning">🟡 Средний</span>
+                    {% else %}
+                        <span class="text-danger">🔴 Высокий</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="btn-group">
+                        <form action="{{ url_for('restore_question', question_id=question.id) }}" method="post" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-outline-success">
+                                <i class="fas fa-undo"></i>
+                            </button>
+                        </form>
+                        <form action="{{ url_for('delete_question', question_id=question.id) }}" method="post" style="display:inline;">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                    onclick="return confirm('Вы уверены, что хотите удалить этот вопрос окончательно?');">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- После таблицы -->
+{% set base_args = request.args.to_dict() %}
+<nav aria-label="Постраничная навигация">
+    <ul class="pagination justify-content-center">
+        {% if page > 1 %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('archive', **(base_args|combine({'page': page-1}))) }}">Предыдущая</a>
+        </li>
+        {% endif %}
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('archive', **(base_args|combine({'page': p}))) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        {% if page < total_pages %}
+        <li class="page-item">
+            <a class="page-link" href="{{ url_for('archive', **(base_args|combine({'page': page+1}))) }}">Следующая</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endblock %}
+
+
+
