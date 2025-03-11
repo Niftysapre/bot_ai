@@ -16,7 +16,7 @@ import functools
 import re
 import hashlib
 
-TOKEN = "7795035095:AAFgeRJU8ZriQ-BCN4Ew_0YE7wttAYnZw2o"
+TOKEN = ""
 
 # Создаем единственный экземпляр OllamaHandler при запуске приложения
 ollama_instance = OllamaHandler()
